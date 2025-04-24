@@ -1,0 +1,62 @@
+[
+    {
+        "id": 1,
+        "destino": "Bahamas",
+        "data_embarque": ["2025-06-01", "2025-07-01", "2025-08-01"],
+        "porto_embarque": "Rio de Janeiro",
+        "navio": "Navio Tropical",
+        "noites": 7,
+        "valor_por_pessoa": 2500.0,
+        "lugares_visitados": ["Nassau", "CocoCay", "Freeport"]
+    },
+    {
+        "id": 2,
+        "destino": "Caribe",
+        "data_embarque": ["2025-06-15", "2025-07-15", "2025-08-15"],
+        "porto_embarque": "Santos",
+        "navio": "Caribbean Dream",
+        "noites": 10,
+        "valor_por_pessoa": 3200.0,
+        "lugares_visitados": ["San Juan", "St. Thomas", "Barbados"]
+    },
+    {
+        "id": 3,
+        "destino": "Mediterrâneo",
+        "data_embarque": ["2025-05-20", "2025-06-20", "2025-07-20"],
+        "porto_embarque": "Barcelona",
+        "navio": "Mediterrâneo Luxo",
+        "noites": 12,
+        "valor_por_pessoa": 4500.0,
+        "lugares_visitados": ["Roma", "Atenas", "Santorini", "Nice"]
+    },
+    {
+        "id": 4,
+        "destino": "Fiordes Noruegueses",
+        "data_embarque": ["2025-06-10", "2025-07-10", "2025-08-10"],
+        "porto_embarque": "Copenhague",
+        "navio": "Northern Lights",
+        "noites": 9,
+        "valor_por_pessoa": 3900.0,
+        "lugares_visitados": ["Bergen", "Geiranger", "Ålesund"]
+    },
+    {
+        "id": 5,
+        "destino": "América do Sul",
+        "data_embarque": ["2025-11-05", "2025-12-05"],
+        "porto_embarque": "Buenos Aires",
+        "navio": "Sul América Cruise",
+        "noites": 8,
+        "valor_por_pessoa": 2800.0,
+        "lugares_visitados": ["Montevidéu", "Punta del Este", "Ilhabela", "Rio de Janeiro"]
+    },
+    {
+        "id": 6,
+        "destino": "Alasca",
+        "data_embarque": ["2025-06-25", "2025-07-25"],
+        "porto_embarque": "Vancouver",
+        "navio": "Glacier Explorer",
+        "noites": 7,
+        "valor_por_pessoa": 4700.0,
+        "lugares_visitados": ["Juneau", "Skagway", "Ketchikan", "Glacier Bay"]
+    }
+]
