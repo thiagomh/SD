@@ -30,7 +30,7 @@ def publicar_reserva(itinerario, data_embarque, passageiros, cabines):
       )
       channel = connection.channel()
 
-      exchange_name = "reserva_exchange"
+      exchange_name = "sistema_exchange"
       routing_key = "reserva-criada"
 
       channel.exchange_declare(exchange=exchange_name,
@@ -59,42 +59,35 @@ def publicar_reserva(itinerario, data_embarque, passageiros, cabines):
 # ------------------------------------------------
 # Escuta as filas
 # ------------------------------------------------
-def escutar_filas(id_reserva, evento_fim):
+def escutar_filas():
       def callback(ch, method, properties, body):
-            mensagem = json.loads(body)
-            tipo = method.routing_key
+            try:
+                  mensagem = json.loads(body)
+                  tipo = method.routing_key
+                  id_reserva = mensagem.get("id_reserva")
+                  
+                  if tipo in ['pagamento-aprovado', 'pagamento-recusado']:
+                        assinatura = mensagem.get("assinatura")
+                        mensagem_original = json.dumps({
+                              "id_reserva": mensagem["id_reserva"],
+                              "status": mensagem["status"]
+                        })
 
-            if mensagem.get('id_reserva') != id_reserva:
-                  return 
-            
-            if tipo in ['pagamento-aprovado', 'pagamento-recusado']:
-                  assinatura = mensagem.get('assinatura')
+                        if not verifica_assinatura(chave_publica, mensagem_original, assinatura):
+                              print("Assinatura Inválida. Reserva Cancelada.")
+                              return 
+                  
+                  if tipo == 'pagamento-aprovado':
+                        print("aprovado")
+                  elif tipo == 'pagamento-recusado':
+                        print("recusado")
+                  elif tipo == 'bilhete-gerado':
+                        print("bilhete")
 
-                  mensagem_original = json.dumps({
-                        "id_reserva": mensagem["id_reserva"],
-                        "status": mensagem["status"]
-                  })
+            except Exception as e:
+                  print(f"Erro no callback: {e}")
 
-                  if not verifica_assinatura(carregar_chave_publica("./chave/public-key.pem"),
-                                             mensagem_original,
-                                             assinatura):
-                        print("invalida")
-                        return 
-            
-            print(f"\n Notificação da fila '{tipo}: ")
-            if tipo == 'pagamento-aprovado':
-                  print("Pagamento aprovado.")
-                  evento_fim.set()
-
-            elif tipo == 'pagamento-recusado':
-                  print("Pagamento recusado.")
-                  evento_fim.set()
-
-            elif tipo == 'bilhete-gerado':
-                  print("Bilhete gerado")
-                  print(f"{mensagem}")
-
-            print()
+      chave_publica = carregar_chave_publica()
 
       connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
       channel = connection.channel()
@@ -114,6 +107,8 @@ def escutar_filas(id_reserva, evento_fim):
 # ------------------------------------------------
 def main():
       itinerarios = carregar_itinerarios()
+
+      threading.Thread(target=escutar_filas, daemon=True).start()
 
       while True:
             print("\n=== Sistema de Reservas ===")
@@ -135,10 +130,6 @@ def main():
                         cabines = int(input("Número de cabines: "))
                         id_reserva = publicar_reserva(id_itinerario, data_embarque, passageiros, cabines)
 
-                        if id_reserva:
-                              evento = threading.Event()
-                              threading.Thread(target=escutar_filas, args=(id_reserva,), daemon=True).start()
-                              evento.wait()
 
                   except ValueError:
                         print("Valor inválido.")

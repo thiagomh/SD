@@ -1,5 +1,5 @@
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
 import base64, os
 
 def gerar_chaves():
@@ -23,15 +23,19 @@ def gerar_chaves():
         ))
 
 def assinar_mensagem(mensagem_json: str) -> str:
-    with open("chaves/private.pem", "rb") as f:
+    base_dir = os.path.dirname(__file__)
+    chave_caminho = os.path.join(base_dir, "chave-privada", "private-key.pem")
+    with open(chave_caminho, "rb") as f:
         private_key = serialization.load_pem_private_key(
             f.read(), password=None
         )
         assinatura = private_key.sign(
-            mensagem_json.encode()
-
+            mensagem_json.encode(),
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
         )
         return base64.b64encode(assinatura).decode()
     
-if __name__ == "__main__":
-    gerar_chaves()
