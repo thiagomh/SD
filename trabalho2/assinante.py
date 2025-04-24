@@ -1,35 +1,46 @@
 # ========================================================================
-# Autor: Thiago Henrique 
 # UTFPR - Sistemas Distribuidos
 # ========================================================================
 # Assinante (subscriber)
 # ========================================================================
 import os, sys, time
 import pika
+import json
 
-def menu():
-      print("=============================")
-      print("Escolha uma opcao")
-      print("1 - Verificar destino")
-      print("2 - Receber promocoes")
-      print("=============================")
+def callback(ch, method, properties, body):
+      promocao = json.loads(body)
+      print("Promoção recebida: ")
+      print(f"{promocao}")
+
 
 def main():
       connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
       channel = connection.channel()
 
-      channel.queue_declare(queue='', durable=True)
+      exchange_name = "promocoes_exchange"
+      routing_key = "promocoes"
 
-      def callback(ch, method, properties, body):
-            print(f"Received ({body.decode()})")
-            time.sleep(body.count(b'.'))
-            print(" [x] Done")
-            ch.basic_ack(delivery_tag = method.delivery_tag)
+      channel.exchange_declare(
+            exchange=exchange_name,
+            exchange_type='direct',
+            durable=True
+      )
 
-      channel.basic_qos(prefetch_count=1)
-      channel.basic_consume(queue='', on_message_callback=callback)
+      result = channel.queue_declare(queue='', exclusive=True)
+      queue_name = result.method.queue
 
-      print("")
+      destinos = input("Entre com os destinos: ").split(',')
+
+      for destino in destinos:
+            routing_key = f"promocoes-{destino}"
+            channel.queue_bind(exchange=exchange_name, 
+                               queue=queue_name,
+                               routing_key=routing_key)
+
+      channel.basic_consume(queue=queue_name,
+                            on_message_callback=callback,
+                            auto_ack=True)
+      
       channel.start_consuming()
 
 if __name__ == '__main__':
