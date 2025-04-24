@@ -1,5 +1,4 @@
 # ========================================================================
-# Autor: Thiago Henrique 
 # UTFPR - Sistemas Distribuidos
 # ========================================================================
 # MS Marketing (publisher)
@@ -8,8 +7,6 @@ import pika
 import os, sys
 import time
 import random
-
-DESTINOS = ["Bahamas", "Mediterrâneo", "Alasca"]
 
 def publica_promocao(destino):
       connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
