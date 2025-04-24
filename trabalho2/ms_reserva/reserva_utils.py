@@ -6,6 +6,7 @@ import os
 def carregar_itinerarios():
       base_path = os.path.dirname(__file__)
       path = os.path.join(base_path, "itinerarios.json")
+      print(path)
       with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
 

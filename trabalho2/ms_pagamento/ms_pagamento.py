@@ -57,8 +57,11 @@ def main():
       connection = pika.BlockingConnection(pika.ConnectionParameters("lcoalhost"))
       channel = connection.channel()
 
-      channel.queue_declare(queue="reserva-criada", durable=True)
-      channel.basic_consume(queue="reserva-criada", on_message_callback=callback, auto_ack=True)
+      # Escuta fila de reservas criadas
+      channel.queue_declare(queue='reserva-criada', durable=True)
+      channel.basic_consume(queue='reserva-criada', 
+                            on_message_callback=callback, 
+                            auto_ack=True)
 
       channel.start_consuming()
 
