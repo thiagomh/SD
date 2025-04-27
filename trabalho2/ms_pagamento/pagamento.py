@@ -12,10 +12,10 @@ from crypto_utils import assinar_mensagem
 
 def callback(ch, method, properties, body):
       reserva = json.loads(body)
+      print(reserva)
       id_reserva = reserva["id_reserva"]
 
       print(f"\n Pagamento recebido para {id_reserva}")
-      time.sleep(2)
 
       aprovado = choice([True, False])
 
@@ -57,9 +57,17 @@ def main():
       connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
       channel = connection.channel()
 
-      # Escuta fila de reservas criadas
-      channel.queue_declare(queue='reserva-criada', durable=True)
-      channel.basic_consume(queue='reserva-criada', 
+      exchange_name = 'sistema_exchange'
+      routing_key = 'reserva-criada'
+
+      result = channel.queue_declare(queue='', durable=True)
+      queue_name = result.method.queue
+
+      channel.queue_bind(exchange=exchange_name,
+                         queue=queue_name,
+                         routing_key=routing_key)
+      
+      channel.basic_consume(queue=routing_key, 
                             on_message_callback=callback, 
                             auto_ack=True)
 

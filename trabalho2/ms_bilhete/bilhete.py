@@ -49,6 +49,7 @@ def publicar_bilhete(bilhete):
 def callback(ch, method, properties, body):
       try:
             mensagem = json.loads(body)
+            print(mensagem)
             assinatura = mensagem.get("assinatura")
 
             mensagem_original = json.dumps({
@@ -59,7 +60,9 @@ def callback(ch, method, properties, body):
             if not verificar_assinatura(CHAVE, mensagem_original, assinatura):
                   print("Assinatura inválida. Bilhete não será gerado")
                   return
+            
             print("Mensagem verificada com sucesso.")
+            
             bilhete = gerar_bilhete(mensagem)
             publicar_bilhete(bilhete)
             print("Bilhete gerado.")
@@ -76,7 +79,7 @@ def main():
                             on_message_callback=callback,
                             auto_ack=True)
       
-      print("Escutando...")
+      print("MS Bilhete - aguardando aprovações de pagamento...")
       channel.start_consuming()
 
 if __name__ == '__main__':

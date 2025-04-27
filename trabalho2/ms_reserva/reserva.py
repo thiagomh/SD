@@ -3,20 +3,17 @@
 # ========================================================================
 # MS Reserva (publisher/subscriber)
 # ========================================================================
-
 import pika 
 import json
 import threading
 import os, sys
-from time import time
+import time
 from crypto_utils import carregar_chave_publica, verifica_assinatura
 from reserva_utils import carregar_itinerarios, listar_itinerarios, consultar_itinerarios
 
-# ------------------------------------------------
-# Publica reserva na fila 'reserva-criada'
-# ------------------------------------------------
+
 def publicar_reserva(itinerario, data_embarque, passageiros, cabines):
-      id_reserva = f"reserva{itinerario}_{int(time())}"
+      id_reserva = f"reserva{itinerario}_{int(time.time())}"
       nova_reserva = {
             "id_reserva": id_reserva,
             "id_itinerario": itinerario,
@@ -37,13 +34,11 @@ def publicar_reserva(itinerario, data_embarque, passageiros, cabines):
                                exchange_type='direct',
                                durable=True)
       
-      # Declara fila 'reserva-criada'
       channel.queue_declare(queue='reserva-criada', durable=True)
       channel.queue_bind(exchange=exchange_name,
                          queue=routing_key,
                          routing_key=routing_key)
       
-      # Publica a reserva para o exchange
       channel.basic_publish(
             exchange=exchange_name,
             routing_key=routing_key,
@@ -53,62 +48,67 @@ def publicar_reserva(itinerario, data_embarque, passageiros, cabines):
 
       connection.close()
 
-      print("\n Reserva criada com sucesso.")
+      print("\n Reserva criada com sucesso. Aguarde atualizações.")
       return id_reserva
 
-# ------------------------------------------------
-# Escuta as filas
-# ------------------------------------------------
-def escutar_filas():
-      def callback(ch, method, properties, body):
-            try:
-                  mensagem = json.loads(body)
-                  tipo = method.routing_key
-                  id_reserva = mensagem.get("id_reserva")
-                  
-                  if tipo in ['pagamento-aprovado', 'pagamento-recusado']:
-                        assinatura = mensagem.get("assinatura")
-                        mensagem_original = json.dumps({
-                              "id_reserva": mensagem["id_reserva"],
-                              "status": mensagem["status"]
-                        })
 
-                        if not verifica_assinatura(chave_publica, mensagem_original, assinatura):
-                              print("Assinatura Inválida. Reserva Cancelada.")
-                              return 
-                  
-                  if tipo == 'pagamento-aprovado':
-                        print("aprovado")
-                  elif tipo == 'pagamento-recusado':
-                        print("recusado")
-                  elif tipo == 'bilhete-gerado':
-                        print("bilhete")
+def callback_aprovado(ch, method, properties, body):
+      try:
+            mensagem = json.loads(body)
+            print(mensagem)
 
-            except Exception as e:
-                  print(f"Erro no callback: {e}")
+            print("Pagamento Aprovado. Gerando bilhete...")
+            
+      except Exception as e:
+            print(f"Erro no callback-pagamento-aprovado. {e}")
 
-      chave_publica = carregar_chave_publica()
+def callback_recusado(ch, method, properties, body):
+      try:
+            mensagem = json.loads(body)
+            print(mensagem)
 
+            print("Pagamento Recusado. Reserva Cancelada.")
+            
+      except Exception as e:
+            print(f"Erro no callback-pagamento-recusado. {e}")
+
+
+def callback_bilhete(ch, method, properties, body):
+      try:
+            mensagem = json.loads(body)
+            print(mensagem)
+
+            print("Bilhete Gerado.")
+            
+      except Exception as e:
+            print(f"Erro no callback-bilhete. {e}")
+
+
+def escutar_fila(routing_key, callback):
       connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
       channel = connection.channel()
 
-      filas = ['pagamento-aprovado', 'pagamento-recusado', 'bilhete-gerado']
-      for fila in filas:
-            channel.queue_declare(queue=fila, durable=True)
-            channel.basic_consume(queue=fila,
-                                  on_message_callback=callback,
-                                  auto_ack=True)
+      exchange_name = 'sistema_exchange'
+      result = channel.queue_declare(queue='', durable=True)
+      queue_name = result.method.queue
 
-      print("Escutando atualizações da reserva...")
+      channel.queue_bind(exchange=exchange_name,
+                         queue=queue_name,
+                         routing_key=routing_key)
+      
+      channel.basic_consume(queue=routing_key,
+                            on_message_callback=callback,
+                            auto_ack=True)
+      
       channel.start_consuming()
-            
-# ------------------------------------------------
-# Menu principal
-# ------------------------------------------------
+
+
 def main():
       itinerarios = carregar_itinerarios()
 
-      threading.Thread(target=escutar_filas, daemon=True).start()
+      threading.Thread(target=escutar_fila, args=('pagamento-aprovado', callback_aprovado), daemon=True).start()
+      threading.Thread(target=escutar_fila, args=('pagamento-recusado', callback_recusado), daemon=True).start()
+      threading.Thread(target=escutar_fila, args=('bilhete-gerado', callback_bilhete), daemon=True).start()
 
       while True:
             print("\n=== Sistema de Reservas ===")
@@ -133,6 +133,8 @@ def main():
 
                   except ValueError:
                         print("Valor inválido.")
+
+                  time.sleep(10)
             elif opcao == "4":
                   print("Saindo...")
                   break

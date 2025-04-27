@@ -24,6 +24,7 @@ def listar_itinerarios(itinerarios):
             print(f"Lugares visitados: {','.join(i['lugares_visitados'])}")
             print(f"Número de noites: {i['noites']}")
             print(f"Valor por pessoa: {i['valor_por_pessoa']}")
+            print()
 
 # ------------------------------------------------
 # Consulta itinerários com os filtros do cliente
@@ -54,5 +55,6 @@ def consultar_itinerarios(itinerarios):
             print(f"Lugares visitados: {','.join(i['lugares_visitados'])}")
             print(f"Número de noites: {i['noites']}")
             print(f"Valor por pessoa: {i['valor_por_pessoa']}")
+            print()
 
       return resultados
