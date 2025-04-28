@@ -17,7 +17,7 @@ def callback(ch, method, properties, body):
 
       print(f"\n Pagamento recebido para {id_reserva}")
 
-      aprovado = choice([True, False])
+      aprovado = choice([True, True])
 
       mensagem = {
             "id_reserva": id_reserva,
@@ -60,11 +60,10 @@ def main():
       exchange_name = 'sistema_exchange'
       routing_key = 'reserva-criada'
 
-      result = channel.queue_declare(queue='', durable=True)
-      queue_name = result.method.queue
+      channel.queue_declare(queue=routing_key, durable=True)
 
       channel.queue_bind(exchange=exchange_name,
-                         queue=queue_name,
+                         queue=routing_key,
                          routing_key=routing_key)
       
       channel.basic_consume(queue=routing_key, 

@@ -89,11 +89,12 @@ def escutar_fila(routing_key, callback):
       channel = connection.channel()
 
       exchange_name = 'sistema_exchange'
-      result = channel.queue_declare(queue='', durable=True)
-      queue_name = result.method.queue
+      
+      channel.queue_declare(queue=routing_key, durable=True)
+     
 
       channel.queue_bind(exchange=exchange_name,
-                         queue=queue_name,
+                         queue=routing_key,
                          routing_key=routing_key)
       
       channel.basic_consume(queue=routing_key,
@@ -128,13 +129,12 @@ def main():
                         data_embarque = input("Data de Embarque: ")
                         passageiros = int(input("Número de passageiros: "))
                         cabines = int(input("Número de cabines: "))
-                        id_reserva = publicar_reserva(id_itinerario, data_embarque, passageiros, cabines)
-
+                        publicar_reserva(id_itinerario, data_embarque, passageiros, cabines)
+                        time.sleep(7)
 
                   except ValueError:
                         print("Valor inválido.")
 
-                  time.sleep(10)
             elif opcao == "4":
                   print("Saindo...")
                   break
