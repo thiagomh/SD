@@ -1,6 +1,6 @@
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
-import base64, os
+import os
 
 def gerar_chaves():
     os.makedirs("chave-privada", exist_ok=True)
@@ -22,7 +22,7 @@ def gerar_chaves():
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ))
 
-def assinar_mensagem(mensagem):
+def assinar_mensagem(mensagem: bytes):
     base_dir = os.path.dirname(__file__)
     chave_caminho = os.path.join(base_dir, "chave-privada", "private-key.pem")
     with open(chave_caminho, "rb") as f:

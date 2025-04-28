@@ -5,7 +5,7 @@
 # ========================================================================
 import pika 
 import json
-import time
+import base64
 import sys, os
 from random import choice
 from crypto_utils import assinar_mensagem
@@ -13,9 +13,17 @@ from crypto_utils import assinar_mensagem
 def callback(ch, method, properties, body):
       # fazer assinatura
       mensagem = json.loads(body)
-      print(mensagem)
+
+      assinatura = assinar_mensagem(json.dumps(mensagem).encode())
+      assinatura_b64 = base64.b64encode(assinatura).decode('utf-8')
 
       aprovado = choice([True, True])
+
+      nova_mensagem = {
+            "mensagem": mensagem,
+            "assinatura": assinatura_b64,
+            "status": aprovado
+      }
 
       connection = pika.BlockingConnection(pika.ConnectionParameters("localhost")) 
       channel = connection.channel()
@@ -34,7 +42,7 @@ def callback(ch, method, properties, body):
       channel.basic_publish(
             exchange=exchange,
             routing_key=routing_key,
-            body=json.dumps(mensagem),
+            body=json.dumps(nova_mensagem),
             properties=pika.BasicProperties(delivery_mode=2)
       )   
 

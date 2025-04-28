@@ -7,7 +7,7 @@ import pika
 import json
 import threading
 import os, sys
-import time
+import time, base64
 from crypto_utils import carregar_chave_publica, verificar_assinatura
 from reserva_utils import carregar_itinerarios, listar_itinerarios, consultar_itinerarios
 
@@ -56,9 +56,17 @@ def publicar_reserva(itinerario, data_embarque, passageiros, cabines):
 def callback_aprovado(ch, method, properties, body):
       try:
             mensagem = json.loads(body)
-            print(mensagem)
+            dados_reserva = mensagem["mensagem"]
+            assinatura = mensagem["assinatura"]
 
-            print("Pagamento Aprovado. Gerando bilhete...")
+            assinatura = base64.b64decode(assinatura)
+            mensagem_serializada = json.dumps(dados_reserva).encode()
+
+            if not verificar_assinatura(CHAVE, mensagem_serializada, assinatura):
+                  print("Assinatura inálida.")
+                  return
+
+            print("Pagamento Aprovado. Cadastrando reserva...")
             
       except Exception as e:
             print(f"Erro no callback-pagamento-aprovado. {e}")
@@ -66,7 +74,15 @@ def callback_aprovado(ch, method, properties, body):
 def callback_recusado(ch, method, properties, body):
       try:
             mensagem = json.loads(body)
-            print(mensagem)
+            dados_reserva = mensagem["mensagem"]
+            assinatura = mensagem["assinatura"]
+
+            assinatura = base64.b64decode(assinatura)
+            mensagem_serializada = json.dumps(dados_reserva).encode()
+
+            if not verificar_assinatura(CHAVE, mensagem_serializada, assinatura):
+                  print("Assinatura inálida.")
+                  return 
 
             print("Pagamento Recusado. Reserva Cancelada.")
             
