@@ -22,7 +22,7 @@ def gerar_chaves():
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ))
 
-def assinar_mensagem(mensagem_json: str) -> str:
+def assinar_mensagem(mensagem):
     base_dir = os.path.dirname(__file__)
     chave_caminho = os.path.join(base_dir, "chave-privada", "private-key.pem")
     with open(chave_caminho, "rb") as f:
@@ -30,12 +30,12 @@ def assinar_mensagem(mensagem_json: str) -> str:
             f.read(), password=None
         )
         assinatura = private_key.sign(
-            mensagem_json.encode(),
+            mensagem,
             padding.PSS(
                 mgf=padding.MGF1(hashes.SHA256()),
                 salt_length=padding.PSS.MAX_LENGTH
             ),
             hashes.SHA256()
         )
-        return base64.b64encode(assinatura).decode()
+        return assinatura
     

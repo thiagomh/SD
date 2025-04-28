@@ -12,12 +12,11 @@ def carregar_chave_publica():
         )
     return public_key
 
-def verifica_assinatura(public_key, mensagem, assinatura_b64):
+def verificar_assinatura(public_key, mensagem: bytes, assinatura):
     try:
-        assinatura = base64.b64decode(assinatura_b64)
         public_key.verify(
             assinatura,
-            mensagem.encode(), 
+            mensagem, 
             padding.PSS(
                 mgf=padding.MGF1(hashes.SHA256()),
                 salt_length=padding.PSS.MAX_LENGTH

@@ -11,20 +11,11 @@ from random import choice
 from crypto_utils import assinar_mensagem
 
 def callback(ch, method, properties, body):
-      reserva = json.loads(body)
-      print(reserva)
-      id_reserva = reserva["id_reserva"]
-
-      print(f"\n Pagamento recebido para {id_reserva}")
+      # fazer assinatura
+      mensagem = json.loads(body)
+      print(mensagem)
 
       aprovado = choice([True, True])
-
-      mensagem = {
-            "id_reserva": id_reserva,
-            "status": "aprovado" if aprovado else "recusado"
-      }
-      assinatura = assinar_mensagem(json.dumps(mensagem))
-      mensagem["assinatura"] = assinatura
 
       connection = pika.BlockingConnection(pika.ConnectionParameters("localhost")) 
       channel = connection.channel()

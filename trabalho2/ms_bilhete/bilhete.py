@@ -50,19 +50,7 @@ def callback(ch, method, properties, body):
       try:
             mensagem = json.loads(body)
             print(mensagem)
-            assinatura = mensagem.get("assinatura")
-
-            mensagem_original = json.dumps({
-                  "id_reserva": mensagem["id_reserva"],
-                  "status": mensagem["status"]
-            })
-
-            if not verificar_assinatura(CHAVE, mensagem_original, assinatura):
-                  print("Assinatura inválida. Bilhete não será gerado")
-                  return
-            
-            print("Mensagem verificada com sucesso.")
-            
+                        
             bilhete = gerar_bilhete(mensagem)
             publicar_bilhete(bilhete)
             print("Bilhete gerado.")

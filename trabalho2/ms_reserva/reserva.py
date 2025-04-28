@@ -8,9 +8,10 @@ import json
 import threading
 import os, sys
 import time
-from crypto_utils import carregar_chave_publica, verifica_assinatura
+from crypto_utils import carregar_chave_publica, verificar_assinatura
 from reserva_utils import carregar_itinerarios, listar_itinerarios, consultar_itinerarios
 
+CHAVE = carregar_chave_publica()
 
 def publicar_reserva(itinerario, data_embarque, passageiros, cabines):
       id_reserva = f"reserva{itinerario}_{int(time.time())}"
