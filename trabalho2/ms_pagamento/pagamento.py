@@ -17,7 +17,7 @@ def callback(ch, method, properties, body):
       assinatura = assinar_mensagem(json.dumps(mensagem).encode())
       assinatura_b64 = base64.b64encode(assinatura).decode('utf-8')
 
-      aprovado = choice([True, True])
+      aprovado = choice([True, False])
 
       nova_mensagem = {
             "mensagem": mensagem,
