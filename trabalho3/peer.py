@@ -24,7 +24,7 @@ class Peer:
         self.registros = {}
         self.ativo = False
         self.temporizador = random.uniform(0.15, 0.3)
-        self.tempo_de_vida = random.randint(30, 100)
+        self.tempo_de_vida = random.randint(15, 30)
 
     def list_local_files(self):
         return os.listdir(self.pasta)
@@ -44,6 +44,10 @@ class Peer:
     @Pyro5.api.expose
     def set_tracker_uri(self, uri):
         self.tracker_uri = uri
+
+    @Pyro5.api.expose
+    def set_epoca(self, epoca):
+        self.epoca = epoca
 
     def limpa_registros(self):
         self.registros = {}
@@ -97,6 +101,7 @@ class Peer:
                     with Pyro5.api.Proxy(uri) as proxy:
                         proxy.set_tracker_uri(self.uri)
                         proxy.registrar_no_tracker(self.uri)
+                        # proxy.set_epoca(self.epoca)
                 except Exception as e:
                     logging.error(f"Erro no anuncio de resultado {e}")
 
@@ -215,7 +220,7 @@ def monitorar_tracker(peer: Peer):
 def monitorar_lista_arquivos(peer: Peer):
     arquivos_atuais = set(peer.list_local_files())
     while True:
-        time.sleep(2)
+        time.sleep(3)
         novos_arquivos = set(peer.list_local_files())
         if novos_arquivos != arquivos_atuais:
             peer.files = list(novos_arquivos)
