@@ -3,6 +3,7 @@ import random, time
 from threading import Thread
 import Pyro5.api
 import logging
+import json
 
 class Peer:
     def __init__(self, nome, pasta):
@@ -24,7 +25,7 @@ class Peer:
         self.registros = {}
         self.ativo = False
         self.temporizador = random.uniform(0.15, 0.3)
-        self.tempo_de_vida = random.randint(15, 30)
+        self.tempo_de_vida = random.randint(10, 25)
 
     def list_local_files(self):
         return os.listdir(self.pasta)
@@ -89,7 +90,7 @@ class Peer:
     def votar_em_candidato(self, nome_candidato, epoca):
         if epoca not in self.votou_epoca:
             self.votou_epoca.append(epoca)
-            self.epoca = epoca
+            # self.epoca = epoca
             logging.info(f"{self.nome} votou em {nome_candidato} na epoca {epoca}")
             return True
         return False
@@ -101,14 +102,15 @@ class Peer:
                     with Pyro5.api.Proxy(uri) as proxy:
                         proxy.set_tracker_uri(self.uri)
                         proxy.registrar_no_tracker(self.uri)
-                        # proxy.set_epoca(self.epoca)
                 except Exception as e:
                     logging.error(f"Erro no anuncio de resultado {e}")
 
     # Funções Tracker
     @Pyro5.api.expose
-    def heartbeat(self):
+    def heartbeat(self, epoca):
         self.ultimo_heartbeat = time.time()
+        if self.epoca < epoca:
+            self.epoca = epoca
         return "vivo"
 
     def enviar_heartbeats(self):
@@ -121,7 +123,7 @@ class Peer:
                 if nome.startswith("peer") and nome != self.nome:
                     try:
                         with Pyro5.api.Proxy(uri) as proxy:
-                            proxy.heartbeat()
+                            proxy.heartbeat(self.epoca)
                     except Exception as e:
                         logging.error(f"Falha no heartbeat: {e}")
         self.is_tracker = False
@@ -146,16 +148,20 @@ class Peer:
         caminho = os.path.join(self.pasta, arquivo)
         if os.path.exists(caminho):
             with open(caminho, "rb") as f:
-                return f.read()
-        return None
+                conteudo = f.read()
+                return conteudo
     
     def baixar_arquivo(self, arquivo, peer_uri):
         try:
             with Pyro5.api.Proxy(peer_uri) as proxy:
                 dados = proxy.enviar_arquivo(arquivo)
                 if dados:
-                    with open(os.path.join(self.pasta, arquivo), "wb") as f:
-                        f.write(dados)
+                    try:
+                        with open(os.path.join(self.pasta, arquivo), "wb") as f:
+                            f.write(dados)
+                    except Exception as e:
+                        logging.error(f"Erro na escrita do arquivo {e}")
+
                     logging.info(f"{self.nome} baixou '{arquivo}' de {peer_uri}")
                     self.files = self.list_local_files()
                     if self.tracker_uri:
@@ -198,7 +204,8 @@ def iniciar_eleicao(peer: Peer, ns):
 def monitorar_tracker(peer: Peer):
     while True:
         if peer.is_tracker:
-            break
+            time.sleep(0.1)
+            continue
 
         ns = Pyro5.api.locate_ns()
         tempo_desde_ultimo_hb = time.time() - peer.ultimo_heartbeat
@@ -233,6 +240,8 @@ def monitorar_lista_arquivos(peer: Peer):
 def main(nome):
     pasta = os.path.join("trabalho3/arquivos/", nome)
     os.makedirs(pasta, exist_ok=True)
+
+    Pyro5.api.config.SERPENT_BYTES_REPR = True
 
     logging.basicConfig(
         filename=os.path.join("trabalho3/logs", f"{nome}.log"),
