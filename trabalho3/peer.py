@@ -2,6 +2,7 @@ import os, sys
 import random, time
 from threading import Thread
 import Pyro5.api
+import logging
 
 class Peer:
     def __init__(self, nome, pasta):
@@ -23,7 +24,7 @@ class Peer:
         self.registros = {}
         self.ativo = False
         self.temporizador = random.uniform(0.15, 0.3)
-        self.tempo_de_vida = random.randint(30, 150)
+        self.tempo_de_vida = random.randint(30, 100)
 
     def list_local_files(self):
         return os.listdir(self.pasta)
@@ -49,9 +50,9 @@ class Peer:
         try:
             with Pyro5.api.Proxy(tracker_uri) as proxy:
                 resultado = proxy.registrar_arquivos(self.nome, self.files)
-                print(resultado)
+                logging.info(resultado)
         except Exception as e:
-            print(f"Erro ao registrar arquivos no tracker: {e}")
+            logging.error(f"Erro ao registrar arquivos no tracker: {e}")
 
     @Pyro5.api.expose
     def registrar_arquivos(self, nome_peer, lista_arquivos):
@@ -72,8 +73,8 @@ class Peer:
                             self.tracker_uri = uri
                             return nome, uri
                 except Exception as e:
-                    print(f"Erro ao buscar tracker: {e}")
-        print("Tracker não encontrado.")
+                    logging.error(f"Erro ao buscar tracker: {e}")
+        logging.info("Tracker não encontrado.")
         return None, None
     
     # Funções de eleição
@@ -82,7 +83,7 @@ class Peer:
         if epoca not in self.votou_epoca:
             self.votou_epoca.append(epoca)
             self.epoca = epoca
-            print(f"{self.nome} votou em {nome_candidato} na epoca {epoca}")
+            logging.info(f"{self.nome} votou em {nome_candidato} na epoca {epoca}")
             return True
         return False
     
@@ -94,7 +95,7 @@ class Peer:
                         proxy.set_tracker_uri(self.uri)
                         proxy.registrar_no_tracker(self.uri)
                 except Exception as e:
-                    print(f"Erro no anuncio de resultado {e}")
+                    logging.error(f"Erro no anuncio de resultado {e}")
 
     # Funções Tracker
     @Pyro5.api.expose
@@ -104,10 +105,8 @@ class Peer:
 
     def enviar_heartbeats(self):
         inicio = time.time()
-        print(f"tempo de vida: {self.tempo_de_vida}")
-        print(time.time() - inicio)
+        logging.info(f"tempo de vida: {self.tempo_de_vida}")
         while self.is_tracker and (time.time() - inicio < self.tempo_de_vida):
-            print("passei aqui")
             time.sleep(0.1)
             ns = Pyro5.api.locate_ns()
             for nome, uri in ns.list().items():
@@ -116,17 +115,20 @@ class Peer:
                         with Pyro5.api.Proxy(uri) as proxy:
                             proxy.heartbeat()
                     except Exception as e:
-                        print(f"Falha no heartbeat: {e}")
+                        logging.error(f"Falha no heartbeat: {e}")
 
     # Funções de transferencia
     def consultar_arquivo(self, arquivo):
+        if self.is_tracker == True:
+            return self.registros.get(arquivo, [])
+        
         if self.tracker_uri:
             try:
                 with Pyro5.api.Proxy(self.tracker_uri) as proxy:
                     registros = proxy.get_registros()
                     return registros.get(arquivo, [])
             except Exception as e:
-                print(f"Erro ao consultar tracker: {e}")
+                logging.error(f"Erro ao consultar tracker: {e}")
         return []
     
     @Pyro5.api.expose
@@ -144,16 +146,16 @@ class Peer:
                 if dados:
                     with open(os.path.join(self.pasta, arquivo), "wb") as f:
                         f.write(dados)
-                    print(f"{self.nome} baixou '{arquivo}' de {peer_uri}")
+                    logging.info(f"{self.nome} baixou '{arquivo}' de {peer_uri}")
                     self.files = self.list_local_files()
                     if self.tracker_uri:
                         self.registrar_no_tracker(self.tracker_uri)
         except Exception as e:
-            print(f"Erro ao abrir arquivo: {e}")
+            logging.error(f"Erro ao abrir arquivo: {e}")
 
 
 def iniciar_eleicao(peer: Peer, ns):
-    print(f"{peer.nome} se declarou como candidato na epoca {peer.epoca}")
+    logging.info(f"{peer.nome} se declarou como candidato na epoca {peer.epoca}")
     peer.eleicao = True
     votos = 1 
     total_peers = 1
@@ -166,10 +168,10 @@ def iniciar_eleicao(peer: Peer, ns):
                     if proxy.votar_em_candidato(peer.nome, peer.epoca):
                         votos += 1
             except Exception as e:
-                print(f"Erro ao solicitar voto em {nome}: {e}")
+                logging.error(f"Erro ao solicitar voto em {nome}: {e}")
 
     if votos > total_peers // 2:
-        print(f"{peer.nome} recebeu {votos}/{total_peers} votos e se tornou o tracker")
+        logging.info(f"{peer.nome} recebeu {votos}/{total_peers} votos e se tornou o tracker")
         peer.is_tracker = True
         tracker_name = f"Tracker_Epoca_{peer.epoca}"
         peer.epoca += 1
@@ -178,7 +180,7 @@ def iniciar_eleicao(peer: Peer, ns):
         peer.eleicao = False
         return True
     else:
-        print(f"{peer.nome} perdeu a eleição")
+        logging.info(f"{peer.nome} perdeu a eleição")
         peer.eleicao = False
         return False
     
@@ -196,12 +198,12 @@ def monitorar_tracker(peer: Peer):
             time.sleep(0.05)
             continue
 
-        print(f"Tracker inativo. {peer.nome} iniciando eleição...")
+        logging.info(f"Tracker inativo. {peer.nome} iniciando eleição...")
 
         peer.epoca += 1
         eleito = iniciar_eleicao(peer, ns)
         if eleito:
-            print(f"{peer.nome} Eleito como novo tracker")
+            logging.info(f"{peer.nome} Eleito como novo tracker")
             peer.temporizador = random.uniform(0.15, 0.3)
             Thread(target=peer.enviar_heartbeats, daemon=True).start()
 
@@ -222,12 +224,18 @@ def main(nome):
     pasta = os.path.join("trabalho3/arquivos/", nome)
     os.makedirs(pasta, exist_ok=True)
 
+    logging.basicConfig(
+        filename=os.path.join("trabalho3/logs", f"{nome}.log"),
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+    )
+
     peer = Peer(nome, pasta)
 
     daemon = Pyro5.api.Daemon()
     uri = daemon.register(peer)
     peer.uri = uri
-    print(f"{nome} URI registrada: {uri}")
+    logging.info(f"{nome} URI registrada: {uri}")
 
     # Ao iniciar, os nós devem interagir com o serviço de nomes 
     ns = Pyro5.api.locate_ns(host="localhost")
@@ -239,6 +247,9 @@ def main(nome):
     monitor_tracker.start()
 
     Thread(target=monitorar_lista_arquivos, args=(peer,), daemon=True).start()
+
+    from menu import menu
+    Thread(target=menu, args=(peer,), daemon=True).start()
 
     daemon.requestLoop()
 
