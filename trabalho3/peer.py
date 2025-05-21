@@ -44,6 +44,9 @@ class Peer:
     @Pyro5.api.expose
     def set_tracker_uri(self, uri):
         self.tracker_uri = uri
+
+    def limpa_registros(self):
+        self.registros = {}
     
     @Pyro5.api.expose
     def registrar_no_tracker(self, tracker_uri):
@@ -69,7 +72,7 @@ class Peer:
             if nome.startswith("Tracker_Epoca_"):
                 try:
                     with Pyro5.api.Proxy(uri) as proxy:
-                        if proxy.get_is_tracker() and proxy.get_ativo():
+                        if proxy.get_is_tracker():
                             self.tracker_uri = uri
                             return nome, uri
                 except Exception as e:
@@ -116,6 +119,8 @@ class Peer:
                             proxy.heartbeat()
                     except Exception as e:
                         logging.error(f"Falha no heartbeat: {e}")
+        self.is_tracker = False
+        self.limpa_registros()
 
     # Funções de transferencia
     def consultar_arquivo(self, arquivo):
@@ -203,7 +208,7 @@ def monitorar_tracker(peer: Peer):
         peer.epoca += 1
         eleito = iniciar_eleicao(peer, ns)
         if eleito:
-            logging.info(f"{peer.nome} Eleito como novo tracker")
+            logging.info(f"{peer.nome} Eleito como novo tracker na epoca {peer.epoca}")
             peer.temporizador = random.uniform(0.15, 0.3)
             Thread(target=peer.enviar_heartbeats, daemon=True).start()
 
