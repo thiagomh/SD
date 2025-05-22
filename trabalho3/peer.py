@@ -201,6 +201,17 @@ def monitorar_tracker(peer: Peer):
             peer.temporizador = random.uniform(0.15, 0.3)
             Thread(target=peer.enviar_heartbeats, daemon=True).start()
 
+def atualizar_lista_arquivos(peer: Peer):
+    arquivos_atuais = set(peer.list_local_files())
+    while True:
+        time.sleep(3)
+        novos_arquivos = set(peer.list_local_files())
+        if novos_arquivos != arquivos_atuais:
+            peer.files = list(novos_arquivos)
+            arquivos_atuais = novos_arquivos
+            if peer.tracker_uri:
+                peer.registrar_no_tracker(peer.tracker_uri)
+
 
 def main(nome):
     pasta = os.path.join("trabalho3/arquivos/", nome)
