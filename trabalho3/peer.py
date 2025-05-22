@@ -83,9 +83,6 @@ class Peer:
     # Funções Tracker
     @Pyro5.api.expose
     def recebe_heartbeat(self, epoca, ns):
-        print(f"{self.nome}: Recebeu heartbeat epoca {epoca}")
-        if epoca < self.epoca:
-            return 
         self.recebeu_heartbeat = True
         if self.epoca < epoca:
             self.epoca = epoca
