@@ -19,7 +19,6 @@ class Peer:
         # Atributos eleicao
         self.epoca = 0
         self.votou_epoca = []
-        self.existe_candidato = False
 
         # Atributos de tracker
         self.registros = {}
@@ -47,6 +46,17 @@ class Peer:
     def ping(self):
         return True
     
+    @Pyro5.api.expose 
+    def ping_tracker(self):
+        try:
+            with Pyro5.api.Proxy(self.tracker_uri) as proxy:
+                if proxy.ping():
+                    return True
+                else:
+                    return False
+        except:
+            return False
+
     @Pyro5.api.expose
     def registrar_no_tracker(self, tracker_uri):
         try:
@@ -82,7 +92,6 @@ class Peer:
                     with Pyro5.api.Proxy(uri) as proxy:
                         proxy._pyroTimeout = 2
                         if proxy.ping():
-                            
                             total_peers += 1
                             if proxy.votar_em_candidato(self.nome, self.epoca + 1):
                                 votos += 1
@@ -95,7 +104,6 @@ class Peer:
     @Pyro5.api.expose
     def recebe_heartbeat(self, epoca, ns):
         self.recebeu_heartbeat = True
-        print(f"Recebendo heatbeat da epoca {epoca}")
         if self.epoca < epoca:
             self.epoca = epoca
             print(f"Estou procurando o tracker epoca {epoca}")
@@ -103,8 +111,6 @@ class Peer:
             if uri_tracker:
                 self.set_tracker_uri(uri_tracker)
                 self.registrar_no_tracker(uri_tracker)
-
-            
 
     def enviar_heartbeats(self):
         while self.is_tracker:
@@ -115,11 +121,9 @@ class Peer:
                     try:
                         with Pyro5.api.Proxy(uri) as proxy:
                             if proxy.ping():
-                                print(f"Enviando heartbeat para {nome}")
                                 proxy.recebe_heartbeat(self.epoca, ns)
                     except (ConnectionError, Pyro5.errors.CommunicationError):
                         continue
-
 
     # Funções de transferencia
     def consultar_arquivo(self, arquivo):
@@ -160,39 +164,13 @@ class Peer:
                         self.registrar_no_tracker(self.tracker_uri)
         except Exception as e:
             print(f"Erro ao abrir arquivo: {e}")
-    
-    @Pyro5.api.expose
-    def remove_votou_epoca(self, epoca):
-        self.votou_epoca.remove(epoca)
-
-    @Pyro5.api.expose 
-    def ping_tracker(self):
-        try:
-            with Pyro5.api.Proxy(self.tracker_uri) as proxy:
-                if proxy.ping():
-                    return True
-                else:
-                    return False
-        except:
-            return False
-        
-    @Pyro5.api.expose
-    def temporizador_reset(self):
-        self.temporizador = random.uniform(0.15, 0.3)
-
-def reseta_temporizador(ns):
-    for nome, uri in ns.list().items():
-        if nome.startswith("peer"):
-            try:
-                with Pyro5.api.Proxy(uri) as proxy:
-                    proxy._pyroTimeout = 2
-                    if proxy.ping():
-                        proxy.temporizador_reset()
-            except Pyro5.errors.CommunicationError as e:
-                continue
-
-
+            
 def iniciar_eleicao(peer: Peer, ns):
+    proxima_epoca = peer.epoca + 1
+    if proxima_epoca in peer.votou_epoca:
+        print(f"{peer.nome} já votou na epoca {proxima_epoca} e não pode se candidatar.")
+        return False
+    
     print(f"{peer.nome} se declarou como candidato na epoca {peer.epoca + 1}")
     votos = 1 
     total_peers = 1
@@ -211,7 +189,6 @@ def iniciar_eleicao(peer: Peer, ns):
     else:
         print(f"{peer.nome} perdeu a eleição")
         peer.votou_epoca.remove(peer.epoca + 1)
-        # peer.zerar_eleicao(ns, peer.epoca + 1)
         return False
     
 
@@ -234,7 +211,6 @@ def monitorar_tracker(peer: Peer):
             if eleito:
                 print(f"{peer.nome} Eleito como novo tracker na epoca {peer.epoca}")
                 print()
-                reseta_temporizador(ns)
                 Thread(target=peer.enviar_heartbeats, daemon=True).start()
 
 def atualizar_lista_arquivos(peer: Peer):
