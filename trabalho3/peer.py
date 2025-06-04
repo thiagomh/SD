@@ -12,11 +12,12 @@ class Peer:
         self.uri = None
         self.pasta = pasta
         self.files = self.list_local_files()
+
         self.is_tracker = False
         self.tracker_uri = None
-        self.temporizador = random.uniform(0.2, 0.4)
-        self.recebeu_heartbeat = False
+        self.timeout = random.uniform(0.15, 0.3)
         self.ultimo_heartbeat = time.time()
+        self.peers_ativos = {}
 
         # Atributos eleicao
         self.epoca = 0
@@ -24,6 +25,7 @@ class Peer:
 
         # Atributos de tracker
         self.registros = {}
+
 
     def list_local_files(self):
         return os.listdir(self.pasta)
@@ -39,14 +41,6 @@ class Peer:
     @Pyro5.api.expose
     def set_tracker_uri(self, uri):
         self.tracker_uri = uri
-
-    # @Pyro5.api.expose
-    # def set_recebeu_heartbeat(self, heart):
-    #     self.recebeu_heartbeat = heart
-
-    @Pyro5.api.expose
-    def ping(self):
-        return True
     
     @Pyro5.api.expose
     def registrar_no_tracker(self, tracker_uri):
@@ -79,11 +73,10 @@ class Peer:
 
     # Funções Tracker
     @Pyro5.api.expose
-    def recebe_heartbeat(self, epoca, ns):
-        # self.recebeu_heartbeat = True
-        self.ultimo_heartbeat = time.time()
+    def recebe_heartbeat(self, epoca):
+        # self.ultimo_heartbeat = time.time()
         if self.epoca < epoca:
-            # ns = Pyro5.api.locate_ns()
+            ns = Pyro5.api.locate_ns()
             self.epoca = epoca
             print(f"Estou procurando o tracker epoca {epoca}")
             uri_tracker = ns.lookup(f"Tracker_Epoca_{epoca}")
@@ -96,15 +89,14 @@ class Peer:
     def enviar_heartbeats(self):
         ns = Pyro5.api.locate_ns()
         while self.is_tracker:
-            time.sleep(0.1)
             for nome, uri in ns.list().items():
                 if nome.startswith("peer") and nome != self.nome:
                     try:
                         with Pyro5.api.Proxy(uri) as proxy:
-                            if proxy.ping():
-                                proxy.recebe_heartbeat(self.epoca, ns)
+                            proxy.recebe_heartbeat(self.epoca)
                     except (ConnectionError, Pyro5.errors.CommunicationError):
                         continue
+            time.sleep(0.1)
 
 
     # Funções de transferencia
@@ -149,6 +141,9 @@ class Peer:
 
 
 def iniciar_eleicao(peer: Peer):
+    if peer.epoca + 1 in peer.votou_epoca:
+        return 
+    
     print(f"{peer.nome} se declarou como candidato na epoca {peer.epoca + 1}")
     peer.votou_epoca.append(peer.epoca + 1)
     votos = 1 
@@ -159,7 +154,6 @@ def iniciar_eleicao(peer: Peer):
         if nome.startswith("peer") and nome != peer.nome:
             try:
                 with Pyro5.api.Proxy(uri) as proxy:
-                    proxy._pyroTimeout = 2
                     total_peers += 1
                     if proxy.votar_em_candidato(peer.nome, peer.epoca + 1):
                         votos += 1
@@ -181,26 +175,21 @@ def iniciar_eleicao(peer: Peer):
     
 
 def monitorar_tracker(peer: Peer):
-    time.sleep(2) 
-    while True:
-        if peer.is_tracker:
-            return
+    while not peer.is_tracker:
 
-        # time.sleep(peer.temporizador)           
-        # if peer.recebeu_heartbeat:
-        #     peer.recebeu_heartbeat = False
-        #     continue
+        if time.time() - peer.ultimo_heartbeat > peer.timeout:
+            print(f"Tracker inativo.")
+            print()
 
-        if time.time() - peer.ultimo_heartbeat <= peer.temporizador:
-            continue
-            
-        print(f"Tracker inativo.")
-        print()
-
-        eleito = iniciar_eleicao(peer)
-        if eleito:
-            print(f"{peer.nome} Eleito como novo tracker na epoca {peer.epoca}")
-            Thread(target=peer.enviar_heartbeats, daemon=True).start()
+            eleito = iniciar_eleicao(peer)
+            if eleito:
+                print(f"{peer.nome} Eleito como novo tracker na epoca {peer.epoca}")
+                Thread(target=peer.enviar_heartbeats, daemon=True).start()
+        else:
+            peer.ultimo_heartbeat = time.time()
+    
+        
+        time.sleep(peer.timeout)
 
 def atualizar_lista_arquivos(peer: Peer):
     arquivos_atuais = set(peer.list_local_files())
