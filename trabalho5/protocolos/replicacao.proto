@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package replicacao;
+
+message Dado {
+  string conteudo = 1;
+}
+
+message Consulta {
+  string chave = 1;
+}
+
+message Resposta {
+  string mensagem = 1;
+  string conteudo = 2;
+}
+
+message LogEntry {
+  int32 epoca = 1;
+  int32 offset = 2;
+  string conteudo = 3;
+}
+
+message CommitRequest {
+  int32 epoca = 1;
+  int32 offset = 2;
+}
+
+message Ack {
+  bool sucesso = 1;
+  string mensagem = 2;
+}
+
+message EstadoReplica {
+  int32 epoca = 1;
+  int32 offset = 2;
+}
+
+message EntradasParaSincronizar {
+  repeated LogEntry entradas = 1;
+}
+
+service ClienteService {
+  rpc EnviarDado (Dado) returns (Resposta);
+  rpc Consultar (Consulta) returns (Resposta);
+}
+
+service ServidorService {
+  rpc ReplicarEntrada (LogEntry) returns (Ack);
+  rpc CommitEntrada (CommitRequest) returns (Ack);
+  rpc SincronizarReplica (EstadoReplica) returns (EntradasParaSincronizar);
+}

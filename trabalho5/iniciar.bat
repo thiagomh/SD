@@ -1,0 +1,5 @@
+start cmd /k "python ./trabalho5/lider.py"
+start cmd /k "python ./trabalho5/client.py"
+start cmd /k "python ./trabalho5/replica.py --porta 50052"
+start cmd /k "python ./trabalho5/replica.py --porta 50053"
+start cmd /k "python ./trabalho5/replica.py --porta 50054"
