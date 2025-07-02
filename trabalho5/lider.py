@@ -8,10 +8,12 @@ PORTA = 50051
 class Lider(replicacao_pb2_grpc.ClienteServiceServicer):
     def __init__(self, enderecos_replicas) -> None:
         self.banco = {}
+        self.log = []
         self.epoca = 1
         self.offset = 0
         self.enderecos_replicas = enderecos_replicas
-        self.stubs = []
+        self.stubs: list[replicacao_pb2_grpc.ServidorServiceStub] = []
+
         for endereco in enderecos_replicas:
             canal = grpc.insecure_channel(endereco)
             stub = replicacao_pb2_grpc.ServidorServiceStub(canal)
@@ -30,27 +32,52 @@ class Lider(replicacao_pb2_grpc.ClienteServiceServicer):
 
     def EnviarDado(self, request, context):
         self.offset += 1 
-        chave = f"entrada_{self.offset}"
-        self.banco[chave] = {
+        entrada = {
             'epoca': self.epoca,
             'offset': self.offset,
             'conteudo': request.conteudo
         }
 
-        # Replicação
-        log_entry = replicacao_pb2.LogEntry(
-            epoca=self.epoca,
-            offset=self.offset,
-            conteudo=request.conteudo
-        )
+        self.log.append(entrada)
 
-        self.replicar_para_replica(log_entry)
+        # Push
+        acks = 0
+        acked_stubs: list[replicacao_pb2_grpc.ServidorServiceStub] = []
+        for stub in self.stubs:
+            try:
+                resposta = stub.ReplicarEntrada(entrada)
+                if resposta.sucesso:
+                    acks += 1
+                    acked_stubs.append(stub)
+            except grpc.RpcError as e:
+                print(f"Erro ao replicar dado: {e}")
+        
+        quorum = len(self.enderecos_replicas) // 2 + 1
+        if acks >= quorum:
+            commit_req = replicacao_pb2.CommitRequest(
+                epoca=self.epoca,
+                offset=self.offset
+            )
+            for stub in acked_stubs:
+                try:
+                    stub.CommitEntrada(commit_req)
+                except grpc.RpcError as e:
+                    print(f"Erro ao enviar commit: {e}")
+                
+                chave = f"entrada_{self.offset}"
+                self.banco[chave] = request.conteudo
 
-        print(f"Dado recebido epoca={self.epoca}:  registro nº {self.offset} → {request.conteudo}")
-        return replicacao_pb2.Resposta(
-            mensagem=f"Dado armazenado com sucesso na chave '{chave}'",
-            conteudo=request.conteudo
-        )
+                print(f"[Líder] Entrada committed: {chave} → {request.conteudo}")
+                return replicacao_pb2.Resposta(
+                    mensagem="Entrada replicada e confirmada com sucesso",
+                    conteudo=chave
+                )
+        else:
+            print(f"[Líder] Falha no quórum. Apenas {acks} acks recebidos.")
+            return replicacao_pb2.Resposta(
+                mensagem="Erro: não foi possível confirmar a entrada (quórum não atingido).",
+                conteudo=""
+            )
     
     def Consultar(self, request, context):
         entrada = self.banco.get(request.chave)
