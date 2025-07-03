@@ -18,7 +18,7 @@ class Lider(replicacao_pb2_grpc.ClienteServiceServicer):
 
         with open(f"trabalho5/logs/{self.arquivo_log}", "w", encoding="utf-8") as f:
             f.write("")
-            
+
         self.carrega_banco()
 
         for endereco in enderecos_replicas:
@@ -84,13 +84,13 @@ class Lider(replicacao_pb2_grpc.ClienteServiceServicer):
             }
             self.salvar_em_banco(self.banco[chave])
 
-            print(f"[Líder] Entrada committed: {chave} → {request.conteudo}")
+            print(f" Entrada committed: {chave} → {request.conteudo}")
             return replicacao_pb2.Resposta(
                 mensagem="Entrada replicada e confirmada com sucesso",
                 conteudo=chave
             )
         else:
-            print(f"[Líder] Falha no quorum. Apenas {acks} acks recebidos.")
+            print(f" Falha no quorum. Apenas {acks} acks recebidos.")
             return replicacao_pb2.Resposta(
                 mensagem="Erro: nao foi possível confirmar a entrada (quorum nao atingido).",
                 conteudo=""
@@ -116,7 +116,7 @@ class Lider(replicacao_pb2_grpc.ClienteServiceServicer):
                 linha = f"{entrada['epoca']},{entrada['offset']},{entrada['conteudo']}\n"
                 f.write(linha)
         except Exception as e:
-            print(f"[Líder] Erro ao salvar log: {e}")
+            print(f" Erro ao salvar log: {e}")
 
     def salvar_em_banco(self, entrada):
         try:
@@ -125,7 +125,7 @@ class Lider(replicacao_pb2_grpc.ClienteServiceServicer):
                 linha = f"{entrada['epoca']},{entrada['offset']},{entrada['conteudo']}\n"
                 f.write(linha)
         except Exception as e:
-            print(f"[Líder] Erro ao salvar banco: {e}")
+            print(f" Erro ao salvar banco: {e}")
     
     def carrega_banco(self):
         with open(f"trabalho5/dados/{self.arquivo_banco}", "r", encoding="utf-8") as f:

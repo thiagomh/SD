@@ -21,10 +21,10 @@ class Replica(replicacao_pb2_grpc.ServidorServiceServicer):
 
     def ReplicarEntrada(self, request, context):
         print()
-        print(f"[Replica] Entrada recebida epoca={request.epoca} - offset={request.offset} - conteudo='{request.conteudo}'")
+        print(f" Entrada recebida epoca={request.epoca} - offset={request.offset} - conteudo='{request.conteudo}'")
 
         if request.epoca < self.epoca or (request.epoca == self.epoca and request.offset != self.offset + 1):
-            print(f"[Replica] Inconsistencia detectada. Esperava offset {self.offset + 1} e recebeu {request.offset}")
+            print(f" Inconsistencia detectada. Esperava offset {self.offset + 1} e recebeu {request.offset}")
             self.truncar_log(request.offset)
             return replicacao_pb2.Ack(
                 sucesso=False,
@@ -33,11 +33,11 @@ class Replica(replicacao_pb2_grpc.ServidorServiceServicer):
 
         self.log.append(request)
         self.salvar_em_log(request)
-        print(f"[Replica] Entrada armazenada no log intermediario.")
+        print(f" Entrada armazenada no log intermediario.")
         return replicacao_pb2.Ack(sucesso=True, mensagem="Entrada replicada com sucesso.")
     
     def CommitEntrada(self, request, context):
-        print(f"[Replica] Ordem de commit recebida para epoca={request.epoca}, offset={request.offset}")
+        print(f" Ordem de commit recebida para epoca={request.epoca}, offset={request.offset}")
         if request.epoca != self.epoca:
             return replicacao_pb2.Ack(sucesso=False, mensagem="Epoca invalida para commit.")
         
@@ -51,7 +51,7 @@ class Replica(replicacao_pb2_grpc.ServidorServiceServicer):
                 }
                 self.salvar_em_arquivo(entrada)
                 self.offset += 1
-                print(f"[Replica] Entrada offset={entrada.offset} committed com sucesso.")
+                print(f" Entrada offset={entrada.offset} committed com sucesso.")
                 return replicacao_pb2.Ack(sucesso=True, mensagem="Commit efetuado.")
         
         return replicacao_pb2.Ack(sucesso=False, mensagem="Offset não encontrado no log intermediario.")
@@ -65,7 +65,7 @@ class Replica(replicacao_pb2_grpc.ServidorServiceServicer):
                 linha = f"{entrada.epoca},{entrada.offset},{entrada.conteudo}\n"
                 f.write(linha)
         except Exception as e:
-            print(f"[Replica] Erro ao salvar em arquivo: {e}")
+            print(f"Erro ao salvar em arquivo: {e}")
 
     def salvar_em_log(self, entrada):
         try:
@@ -74,7 +74,7 @@ class Replica(replicacao_pb2_grpc.ServidorServiceServicer):
                 linha = f"{entrada.epoca},{entrada.offset},{entrada.conteudo}\n"
                 f.write(linha)
         except Exception as e:
-            print(f"[Replica] Erro ao salvar log intermediário: {e}")
+            print(f"Erro ao salvar log intermediário: {e}")
 
     def carrega_banco(self):
         with open(self.path, "r", encoding="utf-8") as f:
