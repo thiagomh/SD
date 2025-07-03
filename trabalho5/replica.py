@@ -37,14 +37,6 @@ class Replica(replicacao_pb2_grpc.ServidorServiceServicer):
                 return replicacao_pb2.Ack(sucesso=True, mensagem="Commit efetuado.")
         
         return replicacao_pb2.Ack(sucesso=False, mensagem="Offset não encontrado no log intermediário.")
-
-    def SincronizarReplica(self, request, context):
-        print(f"[Replica] Pedido de sincronização: epoca={request.epoca}, offset={request.offset}")
-        entradas_para_enviar = [
-            entrada for entrada in self.log
-            if entrada.offset >= request.offset and entrada.epoca == request.epoca
-        ]
-        return replicacao_pb2.EntradasParaSincronizar(entradas=entradas_para_enviar)
     
     def truncar_log(self, offset):
         self.log = [entrada for entrada in self.log if entrada.offset < offset]
