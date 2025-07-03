@@ -16,6 +16,9 @@ class Lider(replicacao_pb2_grpc.ClienteServiceServicer):
         self.arquivo_log = "log_lider.txt"
         self.arquivo_banco = "banco_lider.txt"
 
+        with open(f"trabalho5/logs/{self.arquivo_log}", "w", encoding="utf-8") as f:
+            f.write("")
+            
         self.carrega_banco()
 
         for endereco in enderecos_replicas:

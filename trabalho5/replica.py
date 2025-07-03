@@ -13,6 +13,9 @@ class Replica(replicacao_pb2_grpc.ServidorServiceServicer):
         self.path = f"trabalho5/dados/{self.arquivo_banco}"
         self.banco = {}
 
+        with open(f"trabalho5/logs/{self.arquivo_log}", "w", encoding="utf-8") as f:
+            f.write("")
+
         self.carrega_banco()
 
 
