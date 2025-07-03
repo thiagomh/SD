@@ -32,13 +32,17 @@ class Lider(replicacao_pb2_grpc.ClienteServiceServicer):
 
     def EnviarDado(self, request, context):
         self.offset += 1 
-        entrada = {
+        entrada = replicacao_pb2.LogEntry(
+            epoca=self.epoca,
+            offset=self.offset,
+            conteudo=request.conteudo
+        )
+
+        self.log.append({
             'epoca': self.epoca,
             'offset': self.offset,
             'conteudo': request.conteudo
-        }
-
-        self.log.append(entrada)
+        })
 
         # Push
         acks = 0
@@ -64,14 +68,18 @@ class Lider(replicacao_pb2_grpc.ClienteServiceServicer):
                 except grpc.RpcError as e:
                     print(f"Erro ao enviar commit: {e}")
                 
-                chave = f"entrada_{self.offset}"
-                self.banco[chave] = request.conteudo
+            chave = f"entrada_{self.offset}"
+            self.banco[chave] = {
+                'epoca': self.epoca,
+                'offset': self.offset,
+                'conteudo': request.conteudo
+            }
 
-                print(f"[Líder] Entrada committed: {chave} → {request.conteudo}")
-                return replicacao_pb2.Resposta(
-                    mensagem="Entrada replicada e confirmada com sucesso",
-                    conteudo=chave
-                )
+            print(f"[Líder] Entrada committed: {chave} → {request.conteudo}")
+            return replicacao_pb2.Resposta(
+                mensagem="Entrada replicada e confirmada com sucesso",
+                conteudo=chave
+            )
         else:
             print(f"[Líder] Falha no quórum. Apenas {acks} acks recebidos.")
             return replicacao_pb2.Resposta(
